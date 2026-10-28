@@ -151,6 +151,17 @@ ExternalProject_Add(mbuild-src
 )
 
 set(_xed_mfile "${Python3_EXECUTABLE}" mfile.py --static --opt=2 --no-encoder)
+# mbuild's clang toolchain wants llvm-ar, which macOS runners do not ship;
+# the gnu toolchain drives the system gcc (a clang shim) and ar.
+if(APPLE)
+  list(APPEND _xed_mfile "--compiler=gnu")
+endif()
+set(_xed_env "PYTHONPATH=${_xed_src}/mbuild")
+if(WIN32)
+  # mbuild v2024.11.04 only knows the VS 2017-2022 tool paths. Report 17.0 so
+  # it takes the VCToolsInstallDir route; VS 2026 keeps the same bin layout.
+  list(APPEND _xed_env "VisualStudioVersion=17.0")
+endif()
 if(APPLE)
   set(_xed_ccflags "")
   if(CMAKE_OSX_ARCHITECTURES)
@@ -179,7 +190,7 @@ ExternalProject_Add(xed-project
   SOURCE_DIR "${_xed_src}"
   CONFIGURE_COMMAND ""
   BUILD_COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_mbuild_src}" "${_xed_src}/mbuild"
-  COMMAND "${CMAKE_COMMAND}" -E env "PYTHONPATH=${_xed_src}/mbuild"
+  COMMAND "${CMAKE_COMMAND}" -E env ${_xed_env}
           "${CMAKE_COMMAND}" -E chdir "${_xed_src}" ${_xed_mfile}
   INSTALL_COMMAND ""
   BUILD_BYPRODUCTS ${_xed_libs}
