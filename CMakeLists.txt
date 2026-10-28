@@ -56,6 +56,12 @@ if(UNIX AND NOT APPLE)
 set(CMAKE_EXE_LINKER_FLAGS \"-static-libstdc++ -static-libgcc\" CACHE STRING \"\" FORCE)
 ")
 endif()
+# Static CRT (/MT) keeps the Windows exe free of the VC++ redistributable.
+if(WIN32)
+  file(APPEND "${_init}" "
+set(CMAKE_MSVC_RUNTIME_LIBRARY \"MultiThreaded\" CACHE STRING \"\" FORCE)
+")
+endif()
 # Forward cross-compilation settings (macOS arm64 -> x86_64, toolchains).
 set(_fwd_args)
 foreach(_var CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET
@@ -80,6 +86,9 @@ ExternalProject_Add(llvm-project
   DOWNLOAD_EXTRACT_TIMESTAMP FALSE
   SOURCE_SUBDIR llvm
   BINARY_DIR "${CMAKE_BINARY_DIR}/llvm-build"
+  # Pin Ninja: the MSVC multi-config generator puts llvm-mc.exe under
+  # <Config>/bin, but the install(FILES) path assumes single-config bin/.
+  CMAKE_GENERATOR "Ninja"
   CMAKE_ARGS -C "${_init}" ${_fwd_args}
   BUILD_COMMAND "${CMAKE_COMMAND}" --build <BINARY_DIR> --config Release --target llvm-mc --parallel
   INSTALL_COMMAND ""
