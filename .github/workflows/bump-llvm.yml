@@ -1,0 +1,40 @@
+name: bump-llvm
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bump LLVM if a newer release exists
+        run: python3 scripts/bump_llvm.py
+
+      - name: Detect a changed pin
+        id: changed
+        run: |
+          if ! git diff --quiet llvm-version.txt; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$(head -n1 llvm-version.txt)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a bump PR
+        if: steps.changed.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
+        with:
+          token: ${{ github.token }}
+          branch: bump-llvm
+          title: "Bump LLVM to ${{ steps.changed.outputs.tag }}"
+          body: "Automated bump by scripts/bump_llvm.py. The tarball sha256 in llvm-version.txt matches the GitHub release asset."
