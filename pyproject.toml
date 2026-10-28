@@ -1,0 +1,37 @@
+[build-system]
+requires = ["scikit-build-core >=0.10", "cmake >=3.26", "ninja"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "simdref-llvm-mc"
+# Keep in sync with llvm-version.txt (the bump job updates both).
+version = "23.1.4"
+description = "The llvm-mc assembler from LLVM (X86, AArch64, RISCV) as a pip wheel"
+readme = "README.md"
+license = "Apache-2.0 WITH LLVM-exception"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "Marco Barbone", email = "mbarbone@flatironinstitute.org" }]
+keywords = ["llvm", "llvm-mc", "assembler", "encoding"]
+
+[project.scripts]
+simdref-llvm-mc = "simdref_llvm_mc.__main__:main"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.26"
+wheel.packages = ["src/simdref_llvm_mc"]
+wheel.py-api = "py3"
+
+# One wheel per platform, one CPython per platform (the wheel tag is py3-none).
+[tool.cibuildwheel]
+build = "cp312-*"
+skip = "musllinux*"
+test-requires = ["pytest"]
+test-sources = ["tests"]
+test-command = "python -m pytest tests/test_assemble.py"
+environment = { LLVM_MC_TARBALL = ".llvm-src/llvm-project.src.tar.xz" }
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_34"
