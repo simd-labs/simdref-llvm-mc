@@ -73,6 +73,22 @@ foreach(_var CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET
 endforeach()
 
 if(WIN32)
+  # The runner PATH has a `ninja` shim that prints the MSBuild banner; take the
+  # real binary shipped by the pip `ninja` package in the build environment.
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -c
+      "import ninja, os; print(os.path.join(ninja.BIN_DIR, 'ninja.exe'))"
+    OUTPUT_VARIABLE _ninja
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE _ninja_rc)
+  if(_ninja_rc OR NOT EXISTS "${_ninja}")
+    message(FATAL_ERROR "ninja from the pip package not found (rc=${_ninja_rc}): ${_ninja}")
+  endif()
+  list(APPEND _fwd_args "-DCMAKE_MAKE_PROGRAM=${_ninja}")
+endif()
+
+if(WIN32)
   set(_exe "llvm-mc.exe")
 else()
   set(_exe "llvm-mc")

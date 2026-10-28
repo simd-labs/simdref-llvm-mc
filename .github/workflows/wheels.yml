@@ -35,6 +35,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up the MSVC environment
+        if: matrix.label == 'windows-amd64'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Diagnose the Windows toolchain
+        if: matrix.label == 'windows-amd64'
+        shell: bash
+        run: |
+          cmake --version | head -n1 || true
+          ninja --version || true
+          which -a ninja || true
+          where cl || true
+          python -c "import ninja; print('pip ninja:', ninja.__version__, ninja.BIN_DIR)" || true
+
       - name: Cache the LLVM source tarball
         id: cache-llvm
         uses: actions/cache@v4
