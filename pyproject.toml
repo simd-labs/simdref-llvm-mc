@@ -26,12 +26,12 @@ wheel.py-api = "py3"
 # One wheel per platform, one CPython per platform (the wheel tag is py3-none).
 [tool.cibuildwheel]
 build = "cp312-*"
-skip = "musllinux*"
+skip = "*-musllinux*"
 test-requires = ["pytest"]
 test-sources = ["tests"]
 test-command = "python -m pytest tests/test_assemble.py"
 environment = { LLVM_MC_TARBALL = ".llvm-src/llvm-project.src.tar.xz" }
 
 [tool.cibuildwheel.linux]
-manylinux-x86_64-image = "manylinux_2_34"
-manylinux-aarch64-image = "manylinux_2_34"
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
