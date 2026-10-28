@@ -6,16 +6,17 @@ build-backend = "scikit_build_core.build"
 name = "simdref-llvm-mc"
 # Keep in sync with llvm-version.txt (the bump job updates both).
 version = "23.1.4"
-description = "The llvm-mc assembler from LLVM (X86, AArch64, RISCV) as a pip wheel"
+description = "The llvm-mc assembler from LLVM (X86, AArch64, RISCV) and the Intel XED decoder as a pip wheel"
 readme = "README.md"
 license = "Apache-2.0 WITH LLVM-exception"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "licenses/XED-LICENSE"]
 requires-python = ">=3.9"
 authors = [{ name = "Marco Barbone", email = "mbarbone@flatironinstitute.org" }]
 keywords = ["llvm", "llvm-mc", "assembler", "encoding"]
 
 [project.scripts]
 simdref-llvm-mc = "simdref_llvm_mc.__main__:main"
+simdref-xed = "simdref_llvm_mc.__main__:main_xed"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
@@ -29,7 +30,7 @@ build = "cp312-*"
 skip = "*-musllinux*"
 test-requires = ["pytest"]
 test-sources = ["tests"]
-test-command = "python -m pytest tests/test_assemble.py"
+test-command = "python -m pytest tests/test_assemble.py tests/test_xed.py"
 environment = { LLVM_MC_TARBALL = ".llvm-src/llvm-project.src.tar.xz" }
 
 [tool.cibuildwheel.linux]

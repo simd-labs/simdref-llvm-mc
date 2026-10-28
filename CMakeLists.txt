@@ -11,6 +11,17 @@ list(GET LLVM_PIN 0 LLVM_TAG)
 list(GET LLVM_PIN 1 LLVM_SHA256)
 string(REGEX REPLACE "^llvmorg-" "" LLVM_VERSION "${LLVM_TAG}")
 
+# XED pins come from xed-version.txt: xed tag, xed sha256, mbuild tag, mbuild sha256.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/xed-version.txt" XED_PIN LIMIT_COUNT 4)
+list(LENGTH XED_PIN _xlen)
+if(NOT _xlen EQUAL 4)
+  message(FATAL_ERROR "xed-version.txt needs exactly four lines: xed tag, xed sha256, mbuild tag, mbuild sha256")
+endif()
+list(GET XED_PIN 0 XED_TAG)
+list(GET XED_PIN 1 XED_SHA256)
+list(GET XED_PIN 2 MBUILD_TAG)
+list(GET XED_PIN 3 MBUILD_SHA256)
+
 # Pre-downloaded tarball (CI cache). Falls back to the GitHub release URL when
 # the file is absent, so the same config works with a cache miss.
 set(LLVM_MC_TARBALL "$ENV{LLVM_MC_TARBALL}" CACHE FILEPATH
@@ -72,10 +83,12 @@ foreach(_var CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET
   endif()
 endforeach()
 
+# mfile.py (XED's build driver) runs under this interpreter too.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 if(WIN32)
   # The runner PATH has a `ninja` shim that prints the MSBuild banner; take the
   # real binary shipped by the pip `ninja` package in the build environment.
-  find_package(Python3 REQUIRED COMPONENTS Interpreter)
   execute_process(
     COMMAND "${Python3_EXECUTABLE}" -c
       "import ninja, os; print(os.path.join(ninja.BIN_DIR, 'ninja.exe'))"
@@ -118,6 +131,77 @@ install(FILES "${_llvm_bin}"
         DESTINATION simdref_llvm_mc
         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
                     GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+# XED decoder-only static library, built by XED's own mfile.py (mbuild). The
+# vendored mbuild tree shadows the real mbuild package as a namespace package
+# on Python 3.14, hence PYTHONPATH in the build step below.
+set(_xed_src "${CMAKE_BINARY_DIR}/xed-src")
+set(_mbuild_src "${CMAKE_BINARY_DIR}/mbuild-src")
+set(_xed_kit "${_xed_src}/obj/wkit")
+
+ExternalProject_Add(mbuild-src
+  URL "https://github.com/intelxed/mbuild/archive/refs/tags/${MBUILD_TAG}.tar.gz"
+  URL_HASH "SHA256=${MBUILD_SHA256}"
+  DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+  SOURCE_DIR "${_mbuild_src}"
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+  USES_TERMINAL_DOWNLOAD TRUE
+)
+
+set(_xed_mfile "${Python3_EXECUTABLE}" mfile.py --static --opt=2 --no-encoder)
+if(APPLE)
+  set(_xed_ccflags "")
+  if(CMAKE_OSX_ARCHITECTURES)
+    # mfile bypasses CMake's compiler flags; pass the target arch directly
+    # (the macos-x86_64 wheel cross-builds XED on an arm64 runner).
+    string(APPEND _xed_ccflags " -arch ${CMAKE_OSX_ARCHITECTURES}")
+  endif()
+  if(CMAKE_OSX_DEPLOYMENT_TARGET)
+    string(APPEND _xed_ccflags " -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+  endif()
+  if(_xed_ccflags)
+    string(STRIP "${_xed_ccflags}" _xed_ccflags)
+    list(APPEND _xed_mfile "--extra-ccflags=${_xed_ccflags}")
+  endif()
+endif()
+if(WIN32)
+  set(_xed_libs "${_xed_kit}/lib/xed.lib" "${_xed_kit}/lib/xed-ild.lib")
+else()
+  set(_xed_libs "${_xed_kit}/lib/libxed.a" "${_xed_kit}/lib/libxed-ild.a")
+endif()
+
+ExternalProject_Add(xed-project
+  URL "https://github.com/intelxed/xed/archive/refs/tags/${XED_TAG}.tar.gz"
+  URL_HASH "SHA256=${XED_SHA256}"
+  DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+  SOURCE_DIR "${_xed_src}"
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_mbuild_src}" "${_xed_src}/mbuild"
+  COMMAND "${CMAKE_COMMAND}" -E env "PYTHONPATH=${_xed_src}/mbuild"
+          "${CMAKE_COMMAND}" -E chdir "${_xed_src}" ${_xed_mfile}
+  INSTALL_COMMAND ""
+  BUILD_BYPRODUCTS ${_xed_libs}
+  DEPENDS mbuild-src
+  USES_TERMINAL_DOWNLOAD TRUE
+  USES_TERMINAL_BUILD TRUE
+)
+
+# bin/xed: hex bytes on stdin -> XED iclass, iform and decode facts.
+enable_language(C)
+add_executable(xed-tool xedform.c)
+set_target_properties(xed-tool PROPERTIES OUTPUT_NAME xed)
+add_dependencies(xed-tool xed-project)
+target_include_directories(xed-tool PRIVATE "${_xed_kit}/include")
+# The two XED archives share objects; libxed.a must come first.
+target_link_libraries(xed-tool PRIVATE ${_xed_libs})
+if(WIN32)
+  # Static CRT (/MT) keeps the Windows exe free of the VC++ redistributable.
+  set_property(TARGET xed-tool PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+endif()
+
+install(TARGETS xed-tool RUNTIME DESTINATION simdref_llvm_mc)
 if(NOT WIN32)
-  install(CODE "execute_process(COMMAND strip \"\${CMAKE_INSTALL_PREFIX}/simdref_llvm_mc/llvm-mc\")")
+  install(CODE "execute_process(COMMAND strip \"\${CMAKE_INSTALL_PREFIX}/simdref_llvm_mc/llvm-mc\" \"\${CMAKE_INSTALL_PREFIX}/simdref_llvm_mc/xed\")")
 endif()

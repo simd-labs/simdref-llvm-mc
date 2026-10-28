@@ -2,7 +2,8 @@
 
 This package ships the `llvm-mc` assembler from the LLVM project as a pip
 wheel. It covers the X86, AArch64 and RISCV targets. It is built from the
-official llvm-project source release.
+official llvm-project source release. The wheel also ships the `xed` decoder
+from Intel XED. It turns x86 instruction bytes into the XED iform.
 
 ## Install
 
@@ -23,12 +24,22 @@ Get the binary path from Python:
 ```python
 import simdref_llvm_mc
 simdref_llvm_mc.path()
+simdref_llvm_mc.path("xed")
+```
+
+Run the XED decoder from the command line. It reads hex bytes on stdin, one
+instruction on each line, and prints the iclass, iform and decode facts:
+
+```
+simdref-xed
 ```
 
 The wheel version is the pinned LLVM release, for example `23.1.4`. A rebuild
 against the same LLVM release adds `.postN`, for example `23.1.4.post1`.
 The file `llvm-version.txt` in the source tree holds the release tag on
-line 1 and the sha256 of the source tarball on line 2.
+line 1 and the sha256 of the source tarball on line 2. The file
+`xed-version.txt` pins XED and mbuild with four lines: xed tag, xed
+sha256, mbuild tag, mbuild sha256.
 
 ## Build from source
 
@@ -42,4 +53,5 @@ local copy.
 
 ## License
 
-Apache-2.0 WITH LLVM-exception. See `LICENSE`.
+Apache-2.0 WITH LLVM-exception. See `LICENSE`. XED is Apache-2.0. See
+`licenses/XED-LICENSE`.
