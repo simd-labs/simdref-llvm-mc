@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_existing:
+        description: Publish the musllinux wheels to the already released version
+        type: boolean
+        default: false
 
 jobs:
   wheels:
@@ -16,18 +21,31 @@ jobs:
           - label: linux-x86_64
             os: ubuntu-24.04
             arch: x86_64
+            build: cp312-manylinux_x86_64
           - label: linux-aarch64
             os: ubuntu-24.04-arm
             arch: aarch64
+            build: cp312-manylinux_aarch64
+          - label: linux-musllinux-x86_64
+            os: ubuntu-24.04
+            arch: x86_64
+            build: cp312-musllinux_x86_64
+          - label: linux-musllinux-aarch64
+            os: ubuntu-24.04-arm
+            arch: aarch64
+            build: cp312-musllinux_aarch64
           - label: macos-arm64
             os: macos-14
             arch: arm64
+            build: cp312-macosx_arm64
           - label: macos-x86_64
             os: macos-14
             arch: x86_64
+            build: cp312-macosx_x86_64
           - label: windows-amd64
             os: windows-latest
             arch: AMD64
+            build: cp312-win_amd64
     steps:
       - uses: actions/checkout@v5
 
@@ -76,6 +94,7 @@ jobs:
           CIBW_ARCHS_LINUX: ${{ matrix.arch }}
           CIBW_ARCHS_MACOS: ${{ matrix.arch }}
           CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+          CIBW_BUILD: ${{ matrix.build }}
 
       - name: Upload the wheel
         uses: actions/upload-artifact@v4
@@ -115,3 +134,42 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-musllinux:
+    needs: wheels
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_existing
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check the version is a released tag on this ref's history
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg_version="$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+          # The wheel can only join an existing release: the version must be a
+          # tag in this ref's history.
+          if [ "$(git describe --tags --match "v${pkg_version}" --abbrev=0 2>/dev/null || true)" != "v${pkg_version}" ]; then
+            echo "version $pkg_version has no tag v${pkg_version} in this ref's history"
+            exit 1
+          fi
+
+      - name: Download the musllinux wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-linux-musllinux-*
+          path: dist
+          merge-multiple: true
+
+      - run: ls -la dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
