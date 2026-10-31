@@ -40,7 +40,7 @@ jobs:
             build: cp312-macosx_arm64
             deployment-target: "11.0"
           - label: macos-x86_64
-            os: macos-15
+            os: macos-15-intel
             arch: x86_64
             build: cp312-macosx_x86_64
             deployment-target: "10.13"

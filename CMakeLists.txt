@@ -165,8 +165,7 @@ endif()
 if(APPLE)
   set(_xed_ccflags "")
   if(CMAKE_OSX_ARCHITECTURES)
-    # mfile bypasses CMake's compiler flags; pass the target arch directly
-    # (the macos-x86_64 wheel cross-builds XED on an arm64 runner).
+    # mfile bypasses CMake's compiler flags; pass the target arch directly.
     string(APPEND _xed_ccflags " -arch ${CMAKE_OSX_ARCHITECTURES}")
   endif()
   if(CMAKE_OSX_DEPLOYMENT_TARGET)
