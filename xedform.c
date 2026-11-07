@@ -20,6 +20,7 @@ int main(int argc, char** argv) {
             p += 2;
         }
         xed_decoded_inst_zero_set_mode(&xedd, &state);
+        xed_decoded_inst_set_input_chip(&xedd, XED_CHIP_ALL);
         xed_error_enum_t err = xed_decode(&xedd, buf, n);
         if (err != XED_ERROR_NONE) {
             printf("DECODE_ERROR %s -\n", xed_error_enum_t2str(err));

@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "simdref-llvm-mc"
 # Keep in sync with llvm-version.txt (the bump job updates both).
-version = "23.1.4"
+version = "23.1.4.post1"
 description = "The llvm-mc assembler from LLVM (X86, AArch64, RISCV) and the Intel XED decoder as a pip wheel"
 readme = "README.md"
 license = "Apache-2.0 WITH LLVM-exception"

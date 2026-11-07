@@ -24,6 +24,8 @@ CASES = [
      "VPCLMULQDQ_XMMdq_XMMdq_XMMdq_IMMb", ["eosz=32"]),
     # 66h-prefixed leave: the split's LEAVE_W row keys on eosz 16.
     ("x86_64", "", [], "data16 leave", "LEAVE", ["eosz=16"]),
+    # endbr64: XED_CHIP_ALL keeps CET. The default chip decodes NOP.
+    ("x86_64", "", [], "endbr64", "ENDBR64", ["eosz=32"]),
 ]
 
 
